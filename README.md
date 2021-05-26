@@ -66,12 +66,12 @@ The reported progress values can be of any type, and special progress values can
 	.progress(console.log)
 	.then(console.log)
 ```
->getting going!
->step 1
->step 2
->step 3
->finished successfully
->success
+> getting going!  
+> step 1  
+> step 2  
+> step 3  
+> finished successfully  
+> success  
 
 
 # Putting it all together
@@ -114,14 +114,14 @@ Here's an example to combine all aspects
 
 output
 
->progress 0%
->progress 20%
->progress 40%
->progress 60%
->progress 80%
->progress 100%
->the result was success
->all done
+> progress 0%  
+> progress 20%  
+> progress 40%  
+> progress 60%  
+> progress 80%  
+> progress 100%  
+> the result was success  
+> all done  
 
 
 # syncronous tasks

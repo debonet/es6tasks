@@ -124,13 +124,12 @@ output
 > all done  
 
 
-# syncronous tasks
+# Syncronous tasks
 
-Progress reporting on tasks that are synchronous (i.e. resolve immediately or return a value) only reports the 'started' and 'done' tasks, internal .
+Progress reporting on tasks that are synchronous (i.e. resolve immediately or return a value) will only report the optional `'done'` progress value. In the case of a `.progress()` attached to a synchronous `then()` function, the optional `'started'` progress value will also be reported.
 
 
-
-# A gotcha
+# A small gotcha
 
 Note that the output of a `.then()` call is a new Task, whose promise chain is attached to the task returned by the `.then()` statement.
 

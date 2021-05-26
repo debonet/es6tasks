@@ -155,11 +155,11 @@ _**func**_
 _**options**_
 > an optional options object with 3 optional fields:
 > ```javascript
->	 	{
->	 		started : 
->	 		done : 
-> 			error : 
-> 		}
+>	{
+>		started : 
+>		done : 
+>		error : 
+>	}
 > ```
 > which specify values that are passed to the promise change at the start of the task, when it is completed, or when it is rejected. 
 
@@ -191,11 +191,11 @@ _**reject**_
 _**options**_
 > an optional options object with 3 optional fields:
 > ```javascript
->	 	{
->	 		started : 
->	 		done : 
-> 			error : 
-> 		}
+>		{
+>			started : 
+>			done : 
+>			error : 
+>		}
 > ```
 > which specify options applied to the promise chain for _both_ the resolve and reject outcomes of the  Task.
 

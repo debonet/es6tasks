@@ -131,7 +131,7 @@ class Task extends Promise{
 
 	// -------------------------------------------
 	catch( ...vx ){
-		return this.then( undefined, ...vx );
+		return this.then(( x ) => x, ...vx );
 	}
 
 	// -------------------------------------------

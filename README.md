@@ -201,8 +201,36 @@ _**options**_
 _**returns**_
 > a new task with the progress function attached to the resolve method
 
+## Finally
+* `Task.prototype.finally( final )`
+
+Identical to the `Promises.finally()` behavior.
+
+
+# Static methods
+
+## All & AllSettled
+* `Task.all( taskArray )`
+* `Task.allSettled( taskArray )`
+
+_**taskArray**_
+> an array of Tasks, Promises, or non-promise-derived values
+
+Operates with the usual `Promise.all()` and `Promise.allSettled()`
+behavior, with the addition of progress reports of the current count
+of settled entries issued every time an element is settled.
+
+## Others
+* `Task.race( taskArray )`
+* `Task.any( taskArray )`
+* `Task.resolve( value )`
+* `Task.reject( reason )`
+
+Identical to the equivalent `Promises.*()` behavior.
+
+
 # installation
 
 ```javascript
-	npm install @ebonet/es6task
+	npm install @debonet/es6task
 ```

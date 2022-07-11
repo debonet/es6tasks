@@ -104,12 +104,12 @@ class Task extends Promise{
 		
 		const task = super.then(
 			( x ) => {
-				const  xNext = fOk ? fOk( x ) : fOk;
+				const  xNext = ( fOk instanceof Function ) ? fOk( x ) : fOk;
 				fSetTaskNextIfTask( xNext );
 				return xNext;
 			},
 			( err ) => {
-				const xNext = fErr ? fErr( err ) : Task.reject( err );
+				const xNext = ( fErr instanceof Function ) ? fErr( err ) : Task.reject( err );
 				fSetTaskNextIfTask( xNext );
 				return xNext;
 			}
@@ -156,6 +156,55 @@ class Task extends Promise{
 		}			
 		return this;
 	}
+
+
+	// -------------------------------------------
+	// allSettled() and all() 
+	// -------------------------------------------
+	static allSettled( vp ){
+		return Task.#fpFromVP( super.allSettled.bind(this),  vp, true );
+	}
+
+	// -------------------------------------------
+	static all( vp ){
+		return Task.#fpFromVP( super.all.bind(this), vp, false );
+	}
+
+	// -------------------------------------------
+	static #fpFromVP( fp, vp, bContinueReport ){
+		let n = 0;
+		
+		const pFromVP = fp(
+			vp.map(( p ) => {
+				if ( !( p instanceof Promise )){
+					return p;
+				}
+
+				return p.then(
+					( x ) => {
+						if ( n >= 0 ){
+							n++;
+							pFromVP.#fReportProgress( n );
+						}
+						return x;
+					},
+					( x ) => {
+						if ( n >= 0 ){
+							n++;
+							pFromVP.#fReportProgress( n );
+							if ( !bContinueReport ){
+								n = -1;
+							}
+						}
+						return Task.reject( x );
+					}
+				)
+			})
+		);
+
+		return pFromVP;
+	}
+	
 }
 
 module.exports = Task;

@@ -261,3 +261,49 @@ test("catch chaining to non-task", async ()=>{
 	);
 });
 
+// ---------------------------------------------------------------------------
+test("Task.allSettled", async ()=>{
+	let s = "";
+	
+	await Task.allSettled([
+		new Task(async (fOk, fErr, fReport)=>{
+			await delay( 10 );
+			fErr("reject");
+		}),
+		new Task(async (fOk, fErr, fReport)=>{
+			await delay( 10 );
+			fOk("success");
+		})
+	])
+		.progress(( x ) => s += "H1=" + x + ", ")
+		.then(( x ) => s += JSON.stringify( x ));
+	
+	expect( s ).toBe(
+		'H1=1, H1=2, [{"status":"rejected","reason":"reject"},{"status":"fulfilled","value":"success"}]'
+	);
+});
+
+// ---------------------------------------------------------------------------
+test("Task.all", async ()=>{
+	let s = "";
+	
+	await Task.all([
+		new Task(async (fOk, fErr, fReport)=>{
+			await delay( 10 );
+			fOk("success");
+		}),
+		new Task(async (fOk, fErr, fReport)=>{
+			await delay( 5 );
+			fErr("reject");
+		})
+	])
+		.progress(( x ) => s += "H1=" + x + ", ")
+		.then(( x ) => s += "SUCCESS" )
+		.catch(( x ) => s += "REJECT" )
+			;
+	
+	expect( s ).toBe(
+		'H1=1, REJECT'
+	);
+});
+

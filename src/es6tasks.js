@@ -81,12 +81,12 @@ class Task extends Promise{
 		let vfProgress = [];
 		let taskNext = undefined;
 
-		function fSetTaskNextIfTask( xNext, nState, xReport ){
-			if ( xNext instanceof Task ){
+		function fSetTaskNextIfTask( xNext ){
+			if ( xNext?.progress ){
 				taskNext = xNext;
 			}
 			else{
-				taskNext = Task.resolve(xNext);
+				taskNext = Task.resolve( xNext );
 			}
 			taskNext.#aOpts = {...taskNext.#aOpts, ...aOpts}
 
@@ -96,15 +96,15 @@ class Task extends Promise{
 			
 			taskNext.#aState.n = 1;
 			taskNext.#fReportProgress( aOpts[ 'started' ]);
-			if ( ! ( xNext instanceof Task )){
+			if ( ! ( xNext?.progress )){
 				taskNext.#aState.n = 2;
 				taskNext.#fReportProgress( aOpts[ 'done' ]);
 			}
 		}
-		
+
 		const task = super.then(
 			( x ) => {
-				const  xNext = ( fOk instanceof Function ) ? fOk( x ) : fOk;
+				const  xNext = ( fOk instanceof Function ) ? fOk( x ) : Task.resolve( x );
 				fSetTaskNextIfTask( xNext );
 				return xNext;
 			},
@@ -130,8 +130,53 @@ class Task extends Promise{
 	}
 
 	// -------------------------------------------
-	catch( ...vx ){
-		return this.then(( x ) => x, ...vx );
+	catch( fErr, aOpts = {} ){
+		
+		let vfProgress = [];
+		let taskNext = undefined;
+
+		function fSetTaskNextIfTask( xNext ){
+			if ( xNext?.progress ){
+				taskNext = xNext;
+			}
+			else{
+				taskNext = Task.resolve( xNext );
+			}
+			
+			taskNext.#aOpts = {...taskNext.#aOpts, ...aOpts}
+
+			// accumulate progress() handlers any queued before task was instantiated
+			vfProgress.forEach((f)=>taskNext.progress(f));
+			vfProgress = undefined;
+			
+			taskNext.#aState.n = 1;
+			taskNext.#fReportProgress( aOpts[ 'started' ]);
+			if ( ! ( xNext?.progress )){
+				taskNext.#aState.n = 2;
+				taskNext.#fReportProgress( aOpts[ 'done' ]);
+			}
+		}
+		
+		const task = super.catch(
+			( err ) => {
+				const xNext = ( fErr instanceof Function ) ? fErr( err ) : Task.resolve( err );
+				fSetTaskNextIfTask( xNext );
+				return xNext;
+			}
+		);
+		
+		// rewrite progress() to proxy to the then method or catch method
+		task.progress = ( f ) =>{
+			if (vfProgress){
+				vfProgress.push( f );
+			}
+			else{
+				taskNext.progress( f );
+			}
+			return task;
+		}
+
+		return task;
 	}
 
 	// -------------------------------------------

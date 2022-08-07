@@ -1,6 +1,6 @@
 {
   "name": "@debonet/es6tasks",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "ES6 Promises with progress reporting",
   "main": "src/es6tasks.js",
   "scripts": {

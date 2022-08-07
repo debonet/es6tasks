@@ -92,9 +92,13 @@ class Task extends Promise{
 		let vfProgress = [];
 		let taskNext = undefined;
 
-		function fSetTaskNextIfTask( xNext ){
+		function fSetTaskNextIfTask( xNext, bResolve ){
 			if ( xNext?.progress ){
 				taskNext = xNext;
+			}
+			// Promises don't report progress, but they'll have progress() handlers
+			else if ( xNext instanceof Promise ){
+				return xNext;
 			}
 			else{
 				taskNext = Task.resolve( xNext );
@@ -116,12 +120,12 @@ class Task extends Promise{
 		const task = super.then(
 			( x ) => {
 				const  xNext = ( fOk instanceof Function ) ? fOk( x ) : Task.resolve( x );
-				fSetTaskNextIfTask( xNext );
+				fSetTaskNextIfTask( xNext, true );
 				return xNext;
 			},
 			( err ) => {
 				const xNext = ( fErr instanceof Function ) ? fErr( err ) : Task.reject( err );
-				fSetTaskNextIfTask( xNext );
+				fSetTaskNextIfTask( xNext, false );
 				return xNext;
 			}
 		);

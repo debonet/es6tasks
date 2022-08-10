@@ -163,7 +163,7 @@ _**options**_
 > which specify values that are passed to the promise change at the start of the task, when it is completed, or when it is rejected. 
 
 
-## Progress
+## progress
 * `Task.prototype.progress( func )`
 
 adds a new progress handler
@@ -175,11 +175,11 @@ _**returns**_
 > the task
 
 
-## Then
+## then
 * `Task.prototype.then( resolve, options )`
 * `Task.prototype.then( resolve, reject, options )`
 
-adds a new progress handler
+adds a new then and/or catch handler
 
 _**resolve**_
 > a function called when the task is resolved
@@ -199,9 +199,14 @@ _**options**_
 > which specify options applied to the promise chain for _both_ the resolve and reject outcomes of the  Task.
 
 _**returns**_
-> a new task with the progress function attached to the resolve method
+> a new task that begins when the prior task settles
 
-## Finally
+## catch
+* `Task.prototype.then( reject, options )`
+
+shorthad for `Task.prototype( undefined, reject, options`
+
+## finally
 * `Task.prototype.finally( final )`
 
 Identical to the `Promises.finally()` behavior.
@@ -209,20 +214,20 @@ Identical to the `Promises.finally()` behavior.
 
 # Static methods
 
-## All & AllSettled
+## all, allsettled, race, any
 * `Task.all( taskArray )`
 * `Task.allSettled( taskArray )`
+* `Task.race( taskArray )`
+* `Task.any( taskArray )`
 
 _**taskArray**_
 > an array of Tasks, Promises, or non-promise-derived values
 
-Operates with the usual `Promise.all()` and `Promise.allSettled()`
-behavior, with the addition of progress reports of the current count
-of settled entries issued every time an element is settled.
+Operates with the usual `Promise.*()` behavior, with the addition that
+the progress reports of each task in the provided taskArray are
+concatenated into an array and returned as progress for each update. Progress updates stop after the 
 
 ## Others
-* `Task.race( taskArray )`
-* `Task.any( taskArray )`
 * `Task.resolve( value )`
 * `Task.reject( reason )`
 
@@ -232,5 +237,5 @@ Identical to the equivalent `Promises.*()` behavior.
 # installation
 
 ```javascript
-	npm install @debonet/es6task
+	npm install @debonet/es6tasks
 ```

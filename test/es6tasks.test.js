@@ -5,6 +5,40 @@ function delay( dtm ){
 	return new Promise(( fOk ) => setTimeout( fOk, dtm ));
 }
 
+function fpDelay( dtm, dtmReport = 100 ){
+	return new Task( async (fResolve, fReject, fReport) => {
+		if ( dtmReport <= 0 ) {
+			dtmReport = dtm;
+		}
+		
+		let dtmSlept = 0;
+		let f = () => {
+			let r = dtm > 0 ? dtmSlept / dtm : 0;
+			if ( dtmReport < dtm ){
+				fReport( r );
+			}
+			if ( dtmSlept < ( dtm - dtmReport )){
+				dtmSlept += dtmReport;
+				setTimeout( f, dtmReport );
+			}
+			else if (dtmSlept < dtm ){
+				setTimeout( f, dtm - dtmSlept );
+				dtmSlept = dtm;
+			}
+			else{
+				fResolve();
+			}
+		}
+		f();
+	});
+}
+
+Task.allSettled([
+	()=>fpDelay( 2000 ),
+	()=>fpDelay( 1000 )
+]).progress((x)=>console.log( x ));
+
+
 
 // ---------------------------------------------------------------------------
 test("simple syncronous task progress reports", async ()=>{
@@ -267,19 +301,22 @@ test("Task.allSettled", async ()=>{
 	
 	await Task.allSettled([
 		new Task(async (fOk, fErr, fReport)=>{
+			fReport("p1");
 			await delay( 10 );
 			fErr("reject");
 		}),
 		new Task(async (fOk, fErr, fReport)=>{
+			await delay( 1 );
+			fReport("p2");
 			await delay( 10 );
 			fOk("success");
 		})
 	])
-		.progress(( x ) => s += "H1=" + x + ", ")
+		.progress(( x ) => s += "H1=" + x + " ")
 		.then(( x ) => s += JSON.stringify( x ));
 	
 	expect( s ).toBe(
-		'H1=1, H1=2, [{"status":"rejected","reason":"reject"},{"status":"fulfilled","value":"success"}]'
+		'H1=p1 H1=p1,p2 [{"status":"rejected","reason":"reject"},{"status":"fulfilled","value":"success"}]'
 	);
 });
 
@@ -290,20 +327,24 @@ test("Task.all", async ()=>{
 	await Task.all([
 		new Task(async (fOk, fErr, fReport)=>{
 			await delay( 10 );
+			fReport("p1");
+			await delay( 12 );
 			fOk("success");
 		}),
 		new Task(async (fOk, fErr, fReport)=>{
+			await delay( 2 );
+			fReport("p2");
 			await delay( 5 );
 			fErr("reject");
 		})
 	])
-		.progress(( x ) => s += "H1=" + x + ", ")
+		.progress(( x ) => s += "H1=" + x + " ")
 		.then(( x ) => s += "SUCCESS" )
 		.catch(( x ) => s += "REJECT" )
 			;
 	
 	expect( s ).toBe(
-		'H1=1, REJECT'
+		'H1=,p2 REJECT'
 	);
 });
 

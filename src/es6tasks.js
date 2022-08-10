@@ -177,48 +177,62 @@ class Task extends Promise{
 
 
 	// -------------------------------------------
-	// allSettled() and all() 
+	// allSettled() and all() race() and any()
 	// -------------------------------------------
 	static allSettled( vp ){
-		return Task.fpFromVP( super.allSettled.bind(this),  vp, true );
+		return Task.#fpFromVP( super.allSettled.bind(this),  vp, true, true );
 	}
 
 	// -------------------------------------------
 	static all( vp ){
-		return Task.fpFromVP( super.all.bind(this), vp, false );
+		return Task.#fpFromVP( super.all.bind(this), vp, true, false );
 	}
 
 	// -------------------------------------------
-	static fpFromVP( fp, vp, bContinueReport ){
-		let n = 0;
-		
-		const pFromVP = fp(
-			vp.map(( p ) => {
-				if ( !( p instanceof Promise )){
-					return p;
-				}
+	static race( vp ){
+		return Task.#fpFromVP( super.race.bind(this),  vp, false, false );
+	}
 
-				return p.then(
-					( x ) => {
-						if ( n >= 0 ){
-							n++;
-							pFromVP.fReportProgress( n );
-						}
-						return x;
-					},
-					( x ) => {
-						if ( n >= 0 ){
-							n++;
-							pFromVP.fReportProgress( n );
-							if ( !bContinueReport ){
-								n = -1;
-							}
-						}
-						return Task.reject( x );
+	// -------------------------------------------
+	static any( vp ){
+		return Task.#fpFromVP( super.any.bind(this),  vp, false, true );
+	}
+
+	// -------------------------------------------
+	static #fpFromVP( fp, vp, bContinueOnResolve, bContinueOnReject ){
+		let bContinue = true;
+
+		let vpUse = vp;
+
+		if ( !bContinueOnResolve ){
+			vpUse = vp.map( p => p.then(	x => {
+				bContinue = false;
+				return Promise.resolve( x );
+			}));
+		};
+
+		if ( !bContinueOnReject ){
+			vpUse = vpUse.map( p => p.catch(	x => {
+				bContinue = false;
+				return Promise.reject( x );
+			}));
+		};
+		
+		const pFromVP = fp( vpUse );
+		
+		const vxProgress = [];
+		
+		vp.forEach(( p, n ) => {
+			if ( p instanceof Task ){
+				p.progress(( x ) =>	{
+					if ( bContinue ){
+						vxProgress[ n ] = x;
+						pFromVP.fReportProgress( vxProgress );
 					}
-				)
-			})
-		);
+				});
+			}
+		});
+
 
 		return pFromVP;
 	}

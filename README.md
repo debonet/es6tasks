@@ -129,16 +129,32 @@ output
 Progress reporting on tasks that are synchronous (i.e. resolve immediately or return a value) will only report the optional `'done'` progress value. In the case of a `.progress()` attached to a synchronous `then()` function, the optional `'started'` progress value will also be reported.
 
 
-# A small gotcha
+# A subtlety
 
-Note that the output of a `.then()` call is a new Task, whose promise chain is attached to the task returned by the `.then()` statement.
+Note that the output of a `.then()` call is a new Task, whose promise chain is attached to the task returned by the `.then()` statement. Additionally the reports from the original Task are forwarded to the derived then, unless they return `undefined`.
+
+For example:
 
 ```javascript
 	taskReturningFunction( 10 )
-		.progress(( x ) => console.log( `progress1:  ${x}` ))
+		.progress( x  => `progress1:  ${x}` )
 		.then( someOtherTask )
-		.progress(( x ) => console.log( `progress2:  ${x}` ))
+		.progress( x  => `progress2:  ${x}` )
+		.progress( console.log )
 ```
+
+The final `console.log()` will print the progress from _both_ tasks.
+
+To prevent chaining, simply provide a progress handler that returns `undefined`. E.g.:
+
+```javascript
+	taskReturningFunction( 10 )
+		.progress( x  => undefined )
+		.then( someOtherTask )
+		.progress( console.log )
+```
+
+will only output the progress from `someOtherTask`.
 
 
 # API
@@ -225,7 +241,12 @@ _**taskArray**_
 
 Operates with the usual `Promise.*()` behavior, with the addition that
 the progress reports of each task in the provided taskArray are
-concatenated into an array and returned as progress for each update. Progress updates stop after the 
+concatenated into an array and returned as progress for each update. Progress updates stop after the returned Task settles.
+
+Progress reports are generated for each of the Tasks in the `taskArray`. Reports are of the form:
+
+`{ task: <task-index>, report: <value> }`
+
 
 ## Others
 * `Task.resolve( value )`

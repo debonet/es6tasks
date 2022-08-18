@@ -186,6 +186,7 @@ test("then chaining to new Task", async ()=>{
 		fOk("done1");
 	})
 		.progress(( x ) => s += "H1=" + x + ", ")
+		.progress(( x ) => undefined )
 		.then(
 			()=>new Task(
 				async (fOk, fErr, fReport)=>{
@@ -221,6 +222,7 @@ test("then chaining to non-task", async ()=>{
 		fOk("done1");
 	})
 		.progress(( x ) => s += "H1=" + x + ", ")
+		.progress(( x ) => undefined )
 		.then(
 			()=> 5,
 			{ started : "Started", done : "Done" }
@@ -247,6 +249,7 @@ test("catch chaining to new Task", async ()=>{
 		fErr("done1");
 	})
 		.progress(( x ) => s += "H1=" + x + ", ")
+		.progress(( x ) => undefined )
 		.catch(
 			()=>new Task(
 				async (fOk, fErr, fReport)=>{
@@ -281,6 +284,7 @@ test("catch chaining to non-task", async ()=>{
 		fErr("done1");
 	})
 		.progress(( x ) => s += "H1=" + x + ", ")
+		.progress(( x ) => undefined )
 		.catch(
 			()=> 5,
 			{ started : "Started", done : "Done" }
@@ -312,11 +316,12 @@ test("Task.allSettled", async ()=>{
 			fOk("success");
 		})
 	])
-		.progress(( x ) => s += "H1=" + x + " ")
+		.progress(( x ) => s += "H1=" + x.task + ":" + x.report + " ")
+		.progress(( x ) => undefined )
 		.then(( x ) => s += JSON.stringify( x ));
 	
 	expect( s ).toBe(
-		'H1=p1 H1=p1,p2 [{"status":"rejected","reason":"reject"},{"status":"fulfilled","value":"success"}]'
+		'H1=0:p1 H1=1:p2 [{"status":"rejected","reason":"reject"},{"status":"fulfilled","value":"success"}]'
 	);
 });
 
@@ -338,13 +343,13 @@ test("Task.all", async ()=>{
 			fErr("reject");
 		})
 	])
-		.progress(( x ) => s += "H1=" + x + " ")
+		.progress(( x ) => s += "H1=" + x.task + ":" + x.report + " ")
 		.then(( x ) => s += "SUCCESS" )
 		.catch(( x ) => s += "REJECT" )
 			;
 	
 	expect( s ).toBe(
-		'H1=,p2 REJECT'
+		'H1=1:p2 REJECT'
 	);
 });
 

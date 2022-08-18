@@ -74,7 +74,9 @@ class Task extends Promise{
 				}
 				
 				this.aState.xProgress = (
-					this.aState.vfxProgress.reduce(( x, f ) => f( x ), xIn )
+					this.aState.vfxProgress.reduce(( x, f ) => {
+						return x != undefined ? f( x ) : x
+					}, xIn )
 						?? this.aState.xProgress
 				);
 				return this.aState.xProgress;
@@ -106,7 +108,7 @@ class Task extends Promise{
 			Object.assign( taskNext.aOpts, aOpts );
 
 			// accumulate progress() handlers any queued before task was instantiated
-			vfProgress.forEach((f)=>taskNext.progress(f));
+			vfProgress.forEach( f => taskNext.progress( f ));
 			vfProgress = undefined;
 			
 			taskNext.aState.n = 1;
@@ -119,12 +121,20 @@ class Task extends Promise{
 
 		const task = super.then(
 			( x ) => {
-				const  xNext = ( fOk instanceof Function ) ? fOk( x ) : Task.resolve( x );
-				fSetTaskNextIfTask( xNext, true );
+				const  xNext = (
+					( fOk instanceof Function )
+						? fOk( x )
+						: Task.resolve( x )
+				);
+				fSetTaskNextIfTask( xNext, true );				
 				return xNext;
 			},
 			( err ) => {
-				const xNext = ( fErr instanceof Function ) ? fErr( err ) : Task.reject( err );
+				const xNext = (
+					( fErr instanceof Function )
+						? fErr( err )
+						: Task.reject( err )
+				);
 				fSetTaskNextIfTask( xNext, false );
 				return xNext;
 			}
@@ -134,6 +144,16 @@ class Task extends Promise{
 		Object.defineProperty(task, 'progress', {
 			enumerable : false,
 			value : ( f ) =>{
+
+				this.aState.vfxProgress.push( f );
+				if ( this.aState.n > 0 ){
+					if ( this.aState.xProgress != undefined ){
+						this.aState.xProgress = (
+							f( this.aState.xProgress ) ?? this.aState.xProgress
+						);
+					}
+				}			
+
 				if (vfProgress){
 					vfProgress.push( f );
 				}
@@ -143,10 +163,17 @@ class Task extends Promise{
 				return task;
 			}
 		});
+
+
+		this.progress( x => {
+			task.fReportProgress( x );
+			return x;
+		});
 		
 		return task;
 	}
 
+	
 	// -------------------------------------------
 	catch( fErr, aOpts = {} ){
 		return this.then( undefined, fErr, aOpts);
@@ -169,7 +196,9 @@ class Task extends Promise{
 		this.aState.vfxProgress.push( f );
 		if ( this.aState.n > 0 ){
 			if ( this.aState.xProgress != undefined ){
-				this.aState.xProgress = f( this.aState.xProgress ) ?? this.aState.xProgress;
+				this.aState.xProgress = (
+					f( this.aState.xProgress ) ?? this.aState.xProgress
+				);
 			}
 		}			
 		return this;
@@ -205,14 +234,14 @@ class Task extends Promise{
 		let vpUse = vp;
 
 		if ( !bContinueOnResolve ){
-			vpUse = vp.map( p => p.then(	x => {
+			vpUse = vp.map( p => p.then( x => {
 				bContinue = false;
 				return Promise.resolve( x );
 			}));
 		};
 
 		if ( !bContinueOnReject ){
-			vpUse = vpUse.map( p => p.catch(	x => {
+			vpUse = vpUse.map( p => p.catch( x => {
 				bContinue = false;
 				return Promise.reject( x );
 			}));
@@ -220,14 +249,15 @@ class Task extends Promise{
 		
 		const pFromVP = fp( vpUse );
 		
-		const vxProgress = [];
+		//const vxProgress = new Array( vp.length );
 		
 		vp.forEach(( p, n ) => {
 			if ( p instanceof Task ){
 				p.progress(( x ) =>	{
 					if ( bContinue ){
-						vxProgress[ n ] = x;
-						pFromVP.fReportProgress( vxProgress );
+						//vxProgress[ n ] = x;
+						//pFromVP.fReportProgress( vxProgress );
+						pFromVP.fReportProgress({ task: n, report: x });
 					}
 				});
 			}

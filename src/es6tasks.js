@@ -8,6 +8,7 @@ class Task extends Promise{
 	
 	// -------------------------------------------
 	constructor( f, aOpts = {}){
+
 		const aState = { n : 0, xProgress : aOpts[ 'started' ], vfxProgress : [] };
 		let fReportProgress = () => {};
 		
@@ -164,7 +165,6 @@ class Task extends Promise{
 			}
 		});
 
-
 		this.progress( x => {
 			task.fReportProgress( x );
 			return x;
@@ -196,9 +196,7 @@ class Task extends Promise{
 		this.aState.vfxProgress.push( f );
 		if ( this.aState.n > 0 ){
 			if ( this.aState.xProgress != undefined ){
-				this.aState.xProgress = (
-					f( this.aState.xProgress ) ?? this.aState.xProgress
-				);
+				this.aState.xProgress = f( this.aState.xProgress );
 			}
 		}			
 		return this;
@@ -266,9 +264,57 @@ class Task extends Promise{
 
 		return pFromVP;
 	}
-	
+
+
+
+	// -------------------------------------------
+	// -------------------------------------------
+	static async( fp, aOpts = {}){
+		if ( typeof fp != "function" ){
+			throw (
+				new Error("Task.async requires an promise-returning function")
+			);
+		}
+		
+		return ( ...vx ) => {
+			const aState = {
+				n : 1, xProgress : aOpts[ 'started' ], vfxProgress : []
+			}
+			
+			const fReport = ( x ) => {
+				aState.vfxProgress ??= [];
+				aState.xProgress = aState.vfxProgress.reduce(
+					( x, f ) => ( x != undefined ) ? f( x ) : x,
+					x
+				);
+			}
+
+			const p = fp( fReport, ...vx );
+			p.__proto__ = Task.prototype;
+			Object.defineProperty( p, "aState", { value: aState });
+			return p;
+		}
+	}
+
+	// -------------------------------------------
+	// -------------------------------------------
+	static taskify( x ){
+		if ( x instanceof Task ){
+			return x;
+		}
+		else if ( x instanceof Promise ){
+			const p = x;
+			p.__proto__ = Task.prototype;
+			Object.defineProperty( p, "aState", { value: aState });
+			return p;
+		}
+		else {
+			return Task.resolve( x );
+		}
+	}
 }
 
+	
 module.exports = Task;
 
 

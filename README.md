@@ -124,7 +124,7 @@ output
 > all done  
 
 
-# Syncronous tasks
+# Synchronous tasks
 
 Progress reporting on tasks that are synchronous (i.e. resolve immediately or return a value) will only report the optional `'done'` progress value. In the case of a `.progress()` attached to a synchronous `then()` function, the optional `'started'` progress value will also be reported.
 
@@ -155,6 +155,26 @@ To prevent chaining, simply provide a progress handler that returns `undefined`.
 ```
 
 will only output the progress from `someOtherTask`.
+
+
+
+# Making Task async functions
+
+An `async` function can be upgraded to be a Task-returning function by using the `Task.async()` function. Once done, the function can report to it's promise chain using a `.report()` function that has been bound to the async function itself. To do this, the function must be named (i.e. it must not be anonymous).
+
+Here's an example:
+
+```javascript
+const taskReturningFunction = Task.async ( async function myFunc() {
+	myFunc.report( 8 );
+	return 5;
+}
+
+taskReturningFunction()
+	.progress( x => console.log( "progress:" + x ))
+	.then( x => console.log( "done:" + x ))
+	
+```
 
 
 # API

@@ -2,65 +2,52 @@
 // ===========================================================================
 class Task extends Promise{
 /*
-	aOpts = undefined;
 	aState = undefined;
 */
 	
 	// -------------------------------------------
 	constructor( f, aOpts = {}){
 
-		const aState = { n : 0, xProgress : aOpts[ 'started' ], vfxProgress : [] };
-		let fReportProgress = () => {};
+		const aState = {
+			n : 0, vxProgress : [], vfxProgress : []
+		};
 		
 		let self;
+
+		const fReportOrStore = function( x ){
+			if ( self ){
+				self.fReportProgress( x );
+			}
+			else if ( x ){
+				aState.vxProgress.push( x );
+			}
+		}
+
 		
 		super(( fOk, fErr ) => {
 			aState.n = 1;
-			if ( self ){
-				self.fReportProgress( self.aOpts[ 'started' ]);
-			}
-			else if ( aOpts[ 'started' ] ){
-				aState.xProgress = aOpts[ 'started' ];
-			}
+			fReportOrStore( aOpts[ 'started' ]);
+
+			// call the function
 			f(
 				( x ) => {
 					aState.n = 2;
-					if ( self ){
-						self.fReportProgress( self.aOpts[ 'done' ]);
-					}
-					else if ( aOpts[ 'done' ] ){
-						aState.xProgress = aOpts[ 'done' ];
-					}
+					fReportOrStore( aOpts[ 'done' ]);
 					return fOk( x );
 				},
 				( err ) => {
 					aState.n = 3;
-					if ( self ){
-						self.fReportProgress( self.aOpts[ 'error' ]);
-					}
-					else if ( aOpts[ 'error' ] ){
-						aState.xProgress = aOpts[ 'error' ];
-					}
+					fReportOrStore( aOpts[ 'error' ]);
 					return fErr( err );
 				},
 				( x ) => {
-					if ( self ){
-						self.fReportProgress( x );
-					}
-					else{
-						aState.xProgress = x;
-					}
+					fReportOrStore( x );
 					return x;
 				}
 			);
 		});
 
 		self = this;
-
-		Object.defineProperty( this, 'aOpts', {
-			enumerable : false,
-			value : { ...aOpts }
-		});
 
 		Object.defineProperty( this, 'aState', {
 			enumerable : false,
@@ -73,16 +60,46 @@ class Task extends Promise{
 				if ( xIn == undefined ){
 					return;
 				}
-				
-				this.aState.xProgress = (
-					this.aState.vfxProgress.reduce(( x, f ) => {
-						return x != undefined ? f( x ) : x
-					}, xIn )
-						?? this.aState.xProgress
+
+				let x = this.aState.vfxProgress.reduce(
+					( x, f ) => ( x != undefined ) ? f( x ) : x,
+					xIn
 				);
-				return this.aState.xProgress;
+
+				if (this.aState.vfxProgress.length == 0 ){
+					this.aState.vxProgress.push( x );
+				}
+				else{
+					this.aState.vxProgress = [];
+				}
 			}
 		});
+	}
+	
+
+	// -------------------------------------------
+	#fChain( task, aOpts, x, f, fTaskify ){
+		task.fReportProgress( aOpts[ 'started' ]);
+
+		let xOut = f( x );
+		if ( xOut?.progress ){
+			xOut.progress( x => {
+				task.fReportProgress( x );
+				return x;
+			});
+		}
+
+		if ( xOut instanceof Task ){
+			const xOutOrig = xOut;
+			xOut = xOutOrig.then(
+				x=> { xOutOrig.fReportProgress( aOpts[ 'done' ]); return x },
+				x=> { xOutOrig.fReportProgress( aOpts[ 'error' ]); return Promise.reject( x ); }
+			);
+		}
+		else{
+			task.fReportProgress( aOpts[ 'done' ]);
+		}
+		return xOut;
 	}
 	
 	// -------------------------------------------
@@ -91,85 +108,17 @@ class Task extends Promise{
 			aOpts = { ...fErr, ...aOpts };
 			fErr = undefined;
 		}
-
-		let vfProgress = [];
-		let taskNext = undefined;
-
-		function fSetTaskNextIfTask( xNext, bResolve ){
-			if ( xNext?.progress ){
-				taskNext = xNext;
-			}
-			// Promises don't report progress, but they'll have progress() handlers
-			else if ( xNext instanceof Promise ){
-				return xNext;
-			}
-			else{
-				taskNext = Task.resolve( xNext );
-			}
-			Object.assign( taskNext.aOpts, aOpts );
-
-			// accumulate progress() handlers any queued before task was instantiated
-			vfProgress.forEach( f => taskNext.progress( f ));
-			vfProgress = undefined;
-			
-			taskNext.aState.n = 1;
-			taskNext.fReportProgress( aOpts[ 'started' ]);
-			if ( ! ( xNext?.progress )){
-				taskNext.aState.n = 2;
-				taskNext.fReportProgress( aOpts[ 'done' ]);
-			}
-		}
-
+		
 		const task = super.then(
-			( x ) => {
-				const  xNext = (
-					( fOk instanceof Function )
-						? fOk( x )
-						: Task.resolve( x )
-				);
-				fSetTaskNextIfTask( xNext, true );				
-				return xNext;
-			},
-			( err ) => {
-				const xNext = (
-					( fErr instanceof Function )
-						? fErr( err )
-						: Task.reject( err )
-				);
-				fSetTaskNextIfTask( xNext, false );
-				return xNext;
-			}
+			fOk	 ? x => this.#fChain( task, aOpts, x, fOk ) : undefined,
+			fErr ? x => this.#fChain( task, aOpts, x, fErr, Promise.reject ) : undefined,
 		);
-
-		// rewrite progress() to proxy to the then method or catch method
-		Object.defineProperty(task, 'progress', {
-			enumerable : false,
-			value : ( f ) =>{
-
-				this.aState.vfxProgress.push( f );
-				if ( this.aState.n > 0 ){
-					if ( this.aState.xProgress != undefined ){
-						this.aState.xProgress = (
-							f( this.aState.xProgress ) ?? this.aState.xProgress
-						);
-					}
-				}			
-
-				if (vfProgress){
-					vfProgress.push( f );
-				}
-				else{
-					taskNext.progress( f );
-				}
-				return task;
-			}
-		});
 
 		this.progress( x => {
 			task.fReportProgress( x );
 			return x;
 		});
-		
+
 		return task;
 	}
 
@@ -181,24 +130,20 @@ class Task extends Promise{
 
 	// -------------------------------------------
 	finally( f, aOpts = {}){
-		const p = super.finally(( x ) => {
-			p.aState.n = 1;
-			p.fReportProgress( p.aOpts[ 'started' ]);
-			return f( x );
+		const task = super.finally(	x => this.#fChain( task, aOpts, x, f ));
+		this.progress( x => {
+			task.fReportProgress( x );
+			return x;
 		});
-
-		Object.assign( p.aOpts, this.aOpts, aOpts );
-		return p;
+		return task;
 	}
 
 	// -------------------------------------------
 	progress( f ){
 		this.aState.vfxProgress.push( f );
-		if ( this.aState.n > 0 ){
-			if ( this.aState.xProgress != undefined ){
-				this.aState.xProgress = f( this.aState.xProgress );
-			}
-		}			
+		this.aState.vxProgress = this.aState.vxProgress.map(
+			x => x != undefined ? f( x ) : x
+		);
 		return this;
 	}
 
@@ -206,27 +151,37 @@ class Task extends Promise{
 	// -------------------------------------------
 	// allSettled() and all() race() and any()
 	// -------------------------------------------
-	static allSettled( vp ){
-		return Task.#fpFromVP( super.allSettled.bind(this),  vp, true, true );
+	static allSettled( vp, aOpts = {}){
+		return Task.#fpFromVP(
+			super.allSettled.bind(this),  vp, true, true, aOpts
+		);
 	}
 
 	// -------------------------------------------
-	static all( vp ){
-		return Task.#fpFromVP( super.all.bind(this), vp, true, false );
+	static all( vp, aOpts = {}){
+		return Task.#fpFromVP(
+			super.all.bind(this), vp, true, false, aOpts
+		);
 	}
 
 	// -------------------------------------------
-	static race( vp ){
-		return Task.#fpFromVP( super.race.bind(this),  vp, false, false );
+	static race( vp, aOpts = {}){
+		return Task.#fpFromVP(
+			super.race.bind(this),  vp, false, false, aOpts
+		);
 	}
 
 	// -------------------------------------------
-	static any( vp ){
-		return Task.#fpFromVP( super.any.bind(this),  vp, false, true );
+	static any( vp, aOpts = {}){
+		return Task.#fpFromVP(
+			super.any.bind(this),  vp, false, true, aOpts
+		);
 	}
 
 	// -------------------------------------------
-	static #fpFromVP( fp, vp, bContinueOnResolve, bContinueOnReject ){
+	static #fpFromVP(
+		fp, vp, bContinueOnResolve, bContinueOnReject, aOpts
+	){
 		let bContinue = true;
 
 		let vpUse = vp;
@@ -245,24 +200,36 @@ class Task extends Promise{
 			}));
 		};
 		
-		const pFromVP = fp( vpUse );
-		
-		//const vxProgress = new Array( vp.length );
+		const pFromVP = fp( vpUse )
+
+		if ( aOpts[ 'started' ] ){
+			pFromVP.fReportProgress({ task : 'all', report : aOpts[ 'started' ]});
+		}
 		
 		vp.forEach(( p, n ) => {
 			if ( p instanceof Task ){
 				p.progress(( x ) =>	{
 					if ( bContinue ){
-						//vxProgress[ n ] = x;
-						//pFromVP.fReportProgress( vxProgress );
-						pFromVP.fReportProgress({ task: n, report: x });
+						pFromVP.fReportProgress({ task : n, report : x });
 					}
 				});
 			}
 		});
 
+		return pFromVP
+			.then( x => {
+				if ( aOpts[ 'done' ] ){
+					pFromVP.fReportProgress({ task : 'all', report : aOpts[ 'done' ]});
+				}
+				return x;
+			})
+			.catch( x => {
+				if ( aOpts[ 'error' ] ){
+					pFromVP.fReportProgress({ task : 'all', report : aOpts[ 'error' ]});
+				}
+				return Task.reject( x );
+			})
 
-		return pFromVP;
 	}
 
 
@@ -278,18 +245,29 @@ class Task extends Promise{
 		
 		return ( ...vx ) => {
 			const aState = {
-				n : 1, xProgress : aOpts[ 'started' ], vfxProgress : []
+				n : 1, vxProgress : [ aOpts[ 'started' ]], vfxProgress : []
 			}
 			
-			const fReport = ( x ) => {
-				aState.vfxProgress ??= [];
-				aState.xProgress = aState.vfxProgress.reduce(
+			const fReportProgress = ( xIn ) => {
+				let x = aState.vfxProgress.reduce(
 					( x, f ) => ( x != undefined ) ? f( x ) : x,
-					x
+					xIn
 				);
+
+				if (aState.vfxProgress.length == 0 ){
+					aState.vxProgress.push( x );
+				}
+				else{
+					aState.vxProgress = [];
+				}
 			}
 
-			const p = fp( fReport, ...vx );
+			const p =	(
+				fp( fReportProgress, ...vx )
+					.then( x => { fReportProgress( aOpts[ 'done' ]); return x; })
+					.catch( x => { fReportProgress( aOpts[ 'error' ]); return x; })
+			);
+			
 			p.__proto__ = Task.prototype;
 			Object.defineProperty( p, "aState", { value: aState });
 			return p;

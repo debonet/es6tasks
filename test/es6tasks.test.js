@@ -33,12 +33,6 @@ function fpDelay( dtm, dtmReport = 100 ){
 	});
 }
 
-Task.allSettled([
-	()=>fpDelay( 2000 ),
-	()=>fpDelay( 1000 )
-]).progress((x)=>console.log( x ));
-
-
 
 // ---------------------------------------------------------------------------
 test("simple syncronous task progress reports", async ()=>{
@@ -55,7 +49,7 @@ test("simple syncronous task progress reports", async ()=>{
 
 
 // ---------------------------------------------------------------------------
-test("multple syncronous task reports only report the last", async ()=>{
+test("multple syncronous task reports all get captured", async ()=>{
 	let s = "";
 	
 	const task = new Task((fOk, fErr, fReport)=>{
@@ -65,7 +59,7 @@ test("multple syncronous task reports only report the last", async ()=>{
 	});
 	task.progress(( x ) => s += x);
 	
-	expect( s ).toBe( "here2" );
+	expect( s ).toBe( "here1here2" );
 });
 
 // ---------------------------------------------------------------------------
@@ -253,10 +247,11 @@ test("catch chaining to new Task", async ()=>{
 		.catch(
 			()=>new Task(
 				async (fOk, fErr, fReport)=>{
-					await delay( 10 );
 					fReport( "progC" )
 					await delay( 10 );
 					fReport( "progD" )
+					await delay( 10 );
+					fReport( "progE" )
 					fOk("done2");
 				}
 			),
@@ -268,7 +263,7 @@ test("catch chaining to new Task", async ()=>{
 	await task;
 	
 	expect( s ).toBe(
-		"H1=progA, H1=progB, H2=Started, H2=progC, H2=progD, H2=Done, finally"
+		"H1=progA, H1=progB, H2=Started, H2=progC, H2=progD, H2=progE, H2=Done, finally"
 	);
 });
 
@@ -310,9 +305,9 @@ test("Task.allSettled", async ()=>{
 			fErr("reject");
 		}),
 		new Task(async (fOk, fErr, fReport)=>{
-			await delay( 1 );
+			await delay( 20 );
 			fReport("p2");
-			await delay( 10 );
+			await delay( 30 );
 			fOk("success");
 		})
 	])
@@ -331,9 +326,9 @@ test("Task.all", async ()=>{
 	
 	await Task.all([
 		new Task(async (fOk, fErr, fReport)=>{
-			await delay( 10 );
+			await delay( 100 );
 			fReport("p1");
-			await delay( 12 );
+			await delay( 120 );
 			fOk("success");
 		}),
 		new Task(async (fOk, fErr, fReport)=>{
@@ -344,12 +339,12 @@ test("Task.all", async ()=>{
 		})
 	])
 		.progress(( x ) => s += "H1=" + x.task + ":" + x.report + " ")
-		.then(( x ) => s += "SUCCESS" )
-		.catch(( x ) => s += "REJECT" )
+		.then(( x ) => s += "SUCCESS:" + x )
+		.catch(( x ) => s += "REJECT:" + x )
 			;
 	
 	expect( s ).toBe(
-		'H1=1:p2 REJECT'
+		'H1=1:p2 REJECT:reject'
 	);
 });
 

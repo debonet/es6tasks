@@ -87,6 +87,7 @@ test("simple multiple asyncronous task reports", async ()=>{
 	let s = "";
 	
 	const task = new Task(async (fOk, fErr, fReport)=>{
+		fReport( "here0" )
 		await delay( 10 );
 		fReport( "here1" )
 		await delay( 10 );
@@ -99,7 +100,26 @@ test("simple multiple asyncronous task reports", async ()=>{
 
 	await task;
 	
-	expect( s ).toBe( "here1:here2:done" );
+	expect( s ).toBe( "here0:here1:here2:done" );
+});
+
+// ---------------------------------------------------------------------------
+test("tasks report 0", async ()=>{
+	let s = "";
+	
+	const task = new Task(async (fOk, fErr, fReport)=>{
+		fReport( 0 )
+		await delay( 10 );
+		fReport( 0 )
+		fOk("done");
+	}).then( x => x );
+	
+	task.progress(( x ) => s += x + ":");
+	task.then(( x ) => s += x);
+
+	await task;
+	
+	expect( s ).toBe( "0:0:done" );
 });
 
 // ---------------------------------------------------------------------------

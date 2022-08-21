@@ -18,7 +18,7 @@ class Task extends Promise{
 			if ( self ){
 				self.fReportProgress( x );
 			}
-			else if ( x ){
+			else if ( x !== undefined ){
 				aState.vxProgress.push( x );
 			}
 		}
@@ -57,12 +57,12 @@ class Task extends Promise{
 		Object.defineProperty( this, 'fReportProgress', {
 			enumerable : false,
 			value :  ( xIn ) => {
-				if ( xIn == undefined ){
+				if ( xIn === undefined ){
 					return;
 				}
 
 				let x = this.aState.vfxProgress.reduce(
-					( x, f ) => ( x != undefined ) ? f( x ) : x,
+					( x, f ) => ( x !== undefined ) ? f( x ) : x,
 					xIn
 				);
 
@@ -142,7 +142,7 @@ class Task extends Promise{
 	progress( f ){
 		this.aState.vfxProgress.push( f );
 		this.aState.vxProgress = this.aState.vxProgress.map(
-			x => x != undefined ? f( x ) : x
+			x => x !== undefined ? f( x ) : x
 		);
 		return this;
 	}
@@ -250,7 +250,7 @@ class Task extends Promise{
 			
 			const fReportProgress = ( xIn ) => {
 				let x = aState.vfxProgress.reduce(
-					( x, f ) => ( x != undefined ) ? f( x ) : x,
+					( x, f ) => ( x !== undefined ) ? f( x ) : x,
 					xIn
 				);
 

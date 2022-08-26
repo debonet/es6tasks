@@ -194,10 +194,14 @@ class Task extends Promise{
 		};
 
 		if ( !bContinueOnReject ){
-			vpUse = vpUse.map( p => p.catch( x => {
-				bContinue = false;
-				return Promise.reject( x );
-			}));
+			vpUse = vpUse.map( p => {
+				return ( p instanceof Promise)
+					?	p.catch( x => {
+						bContinue = false;
+						return Promise.reject( x );
+					})
+					: p
+			});
 		};
 		
 		const pFromVP = fp( vpUse )

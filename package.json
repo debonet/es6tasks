@@ -1,6 +1,6 @@
 {
   "name": "@debonet/es6tasks",
-  "version": "1.0.11",
+  "version": "3.0.0",
   "description": "ES6 Promises with progress reporting",
   "main": "src/es6tasks.js",
   "scripts": {
@@ -18,6 +18,6 @@
   },
   "homepage": "https://github.com/debonet/es6tasks#readme",
   "devDependencies": {
-    "jest": "^28.1.3"
+    "jest": "^29"
   }
 }

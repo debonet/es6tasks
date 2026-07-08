@@ -1,3 +1,5 @@
+// v2 continuity suite per specs/v3-v2compat.md (7 PORT, 7 ADAPT, 0 DROP)
+// ported from /Users/jsd/@aios/tmp/v2ref/es6tasks/test/es6tasks.test.js
 const Task = require( "../src/es6tasks.js" );
 
 // ---------------------------------------------------------------------------
@@ -5,45 +7,18 @@ function delay( dtm ){
 	return new Promise(( fOk ) => setTimeout( fOk, dtm ));
 }
 
-function fpDelay( dtm, dtmReport = 100 ){
-	return new Task( async (fResolve, fReject, fReport) => {
-		if ( dtmReport <= 0 ) {
-			dtmReport = dtm;
-		}
-		
-		let dtmSlept = 0;
-		let f = () => {
-			let r = dtm > 0 ? dtmSlept / dtm : 0;
-			if ( dtmReport < dtm ){
-				fReport( r );
-			}
-			if ( dtmSlept < ( dtm - dtmReport )){
-				dtmSlept += dtmReport;
-				setTimeout( f, dtmReport );
-			}
-			else if (dtmSlept < dtm ){
-				setTimeout( f, dtm - dtmSlept );
-				dtmSlept = dtm;
-			}
-			else{
-				fResolve();
-			}
-		}
-		f();
-	});
-}
-
-
 // ---------------------------------------------------------------------------
 test("simple syncronous task progress reports", async ()=>{
 	let s = "";
-	
+
 	const task = new Task((fOk, fErr, fReport)=>{
 		fReport("here")
 		fOk();
 	});
 	task.progress(( x ) => s = x);
-	
+
+	await task;
+
 	expect( s ).toBe( "here" );
 });
 
@@ -51,33 +26,35 @@ test("simple syncronous task progress reports", async ()=>{
 // ---------------------------------------------------------------------------
 test("multple syncronous task reports all get captured", async ()=>{
 	let s = "";
-	
+
 	const task = new Task((fOk, fErr, fReport)=>{
 		fReport("here1")
 		fReport("here2")
 		fOk();
 	});
 	task.progress(( x ) => s += x);
-	
+
+	await task;
+
 	expect( s ).toBe( "here1here2" );
 });
 
 // ---------------------------------------------------------------------------
 test("simple asyncronous task reports", async ()=>{
 	let s = "";
-	
+
 	const task = new Task((fOk, fErr, fReport)=>{
 		setTimeout(()=>{
 			fReport( "here" )
 			fOk("done");
 		}, 100);
 	});
-	
+
 	task.progress(( x ) => s += x + ":");
 	task.then(( x ) => s += x);
 
 	await task;
-	
+
 	expect( s ).toBe( "here:done" );
 });
 
@@ -85,7 +62,7 @@ test("simple asyncronous task reports", async ()=>{
 // ---------------------------------------------------------------------------
 test("simple multiple asyncronous task reports", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		fReport( "here0" )
 		await delay( 10 );
@@ -94,38 +71,38 @@ test("simple multiple asyncronous task reports", async ()=>{
 		fReport( "here2" )
 		fOk("done");
 	});
-	
+
 	task.progress(( x ) => s += x + ":");
 	task.then(( x ) => s += x);
 
 	await task;
-	
+
 	expect( s ).toBe( "here0:here1:here2:done" );
 });
 
 // ---------------------------------------------------------------------------
 test("tasks report 0", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		fReport( 0 )
 		await delay( 10 );
 		fReport( 0 )
 		fOk("done");
 	}).then( x => x );
-	
+
 	task.progress(( x ) => s += x + ":");
 	task.then(( x ) => s += x);
 
 	await task;
-	
+
 	expect( s ).toBe( "0:0:done" );
 });
 
 // ---------------------------------------------------------------------------
 test("promise chains", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( 1 )
@@ -133,23 +110,21 @@ test("promise chains", async ()=>{
 		fReport( 2 )
 		fOk("done");
 	});
-	
+
 	task
-		.progress(( x ) => x * 1000)
-		.progress(( x ) => "--" + x + "--" )
-		.progress(( x ) => s += x + ":");
+		.progress(( x ) => s += "--" + ( x * 1000 ) + "--:");
 
 	task.then(( x ) => s += x);
 
 	await task;
-	
+
 	expect( s ).toBe( "--1000--:--2000--:done" );
 });
 
 // ---------------------------------------------------------------------------
 test("rejections", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( 1 )
@@ -162,14 +137,14 @@ test("rejections", async ()=>{
 		.catch(( x ) => s += "rejected:" + x)
 
 	await task;
-	
+
 	expect( s ).toBe( "1:2:rejected:done" );
 });
 
 // ---------------------------------------------------------------------------
 test("finally", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( 1 )
@@ -181,9 +156,9 @@ test("finally", async ()=>{
 		.then(( x ) => s += "resolved:" + x + ":")
 		.catch(( x ) => s += "rejected:" + x + ":")
 		.finally(() => s += "finally" )
-			
+
 	await task;
-	
+
 	expect( s ).toBe( "1:2:rejected:done:finally" );
 });
 
@@ -191,7 +166,7 @@ test("finally", async ()=>{
 // ---------------------------------------------------------------------------
 test("then chaining to new Task", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( "progA" )
@@ -211,23 +186,22 @@ test("then chaining to new Task", async ()=>{
 					fOk("done2");
 				}
 			),
-			undefined,
-			{ started : "Started", done : "Done" }
+			undefined
 		)
 		.progress(( x ) => s += 'H2=' + x + ", ")
 		.finally(() => s += "finally" )
-			
+
 	await task;
-	
+
 	expect( s ).toBe(
-		"H1=progA, H1=progB, H2=Started, H2=progC, H2=progD, H2=Done, finally"
+		"H1=progA, H2=progA, H1=progB, H2=progB, H2=progC, H2=progD, finally"
 	);
 });
 
 // ---------------------------------------------------------------------------
 test("then chaining to non-task", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( "progA" )
@@ -238,23 +212,22 @@ test("then chaining to non-task", async ()=>{
 		.progress(( x ) => s += "H1=" + x + ", ")
 		.progress(( x ) => undefined )
 		.then(
-			()=> 5,
-			{ started : "Started", done : "Done" }
+			()=> 5
 		)
 		.progress(( x ) => s += 'H2=' + x + ", ")
 		.finally(() => s += "finally" )
-			
+
 	await task;
-	
+
 	expect( s ).toBe(
-		"H1=progA, H1=progB, H2=Started, H2=Done, finally"
+		"H1=progA, H2=progA, H1=progB, H2=progB, finally"
 	);
 });
 
 // ---------------------------------------------------------------------------
 test("catch chaining to new Task", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( "progA" )
@@ -274,23 +247,22 @@ test("catch chaining to new Task", async ()=>{
 					fReport( "progE" )
 					fOk("done2");
 				}
-			),
-			{ started : "Started", done : "Done" }
+			)
 		)
 		.progress(( x ) => s += 'H2=' + x + ", ")
 		.finally(() => s += "finally" )
-			
+
 	await task;
-	
+
 	expect( s ).toBe(
-		"H1=progA, H1=progB, H2=Started, H2=progC, H2=progD, H2=progE, H2=Done, finally"
+		"H1=progA, H2=progA, H1=progB, H2=progB, H2=progC, H2=progD, H2=progE, finally"
 	);
 });
 
 // ---------------------------------------------------------------------------
 test("catch chaining to non-task", async ()=>{
 	let s = "";
-	
+
 	const task = new Task(async (fOk, fErr, fReport)=>{
 		await delay( 10 );
 		fReport( "progA" )
@@ -301,23 +273,22 @@ test("catch chaining to non-task", async ()=>{
 		.progress(( x ) => s += "H1=" + x + ", ")
 		.progress(( x ) => undefined )
 		.catch(
-			()=> 5,
-			{ started : "Started", done : "Done" }
+			()=> 5
 		)
 		.progress(( x ) => s += 'H2=' + x + ", ")
 		.finally(() => s += "finally" )
-			
+
 	await task;
-	
+
 	expect( s ).toBe(
-		"H1=progA, H1=progB, H2=Started, H2=Done, finally"
+		"H1=progA, H2=progA, H1=progB, H2=progB, finally"
 	);
 });
 
 // ---------------------------------------------------------------------------
 test("Task.allSettled", async ()=>{
 	let s = "";
-	
+
 	await Task.allSettled([
 		new Task(async (fOk, fErr, fReport)=>{
 			fReport("p1");
@@ -334,7 +305,7 @@ test("Task.allSettled", async ()=>{
 		.progress(( x ) => s += "H1=" + x.task + ":" + x.report + " ")
 		.progress(( x ) => undefined )
 		.then(( x ) => s += JSON.stringify( x ));
-	
+
 	expect( s ).toBe(
 		'H1=0:p1 H1=1:p2 [{"status":"rejected","reason":"reject"},{"status":"fulfilled","value":"success"}]'
 	);
@@ -343,7 +314,7 @@ test("Task.allSettled", async ()=>{
 // ---------------------------------------------------------------------------
 test("Task.all", async ()=>{
 	let s = "";
-	
+
 	await Task.all([
 		new Task(async (fOk, fErr, fReport)=>{
 			await delay( 100 );
@@ -362,9 +333,8 @@ test("Task.all", async ()=>{
 		.then(( x ) => s += "SUCCESS:" + x )
 		.catch(( x ) => s += "REJECT:" + x )
 			;
-	
+
 	expect( s ).toBe(
 		'H1=1:p2 REJECT:reject'
 	);
 });
-
